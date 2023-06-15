@@ -1,18 +1,25 @@
+import FreeCAD, FreeCADGui
+
 class Staircase (Workbench):
 
+    import os
+    import empty
+    path = os.path.dirname(empty.__file__)
+    iconPath = os.path.join(path, "icons")
+
     MenuText = "Staircase workbench"
-    ToolTip = "A description of my workbench"
-    Icon = ""
+    ToolTip = "Testing"
+    Icon = os.path.join(iconPath, "workbench.svg")
 
     def Initialize(self):
         """This function is executed when the workbench is first activated.
         It is executed once in a FreeCAD session followed by the Activated function.
         """
-        # import MyModuleA, MyModuleB # import here all the needed files that create your FreeCAD commands
-        self.list = ["MyCommand1", "MyCommand2"] # a list of command names created in the line above
-        self.appendToolbar("My Commands", self.list) # creates a new toolbar with your commands
-        self.appendMenu("My New Menu", self.list) # creates a new menu
-        self.appendMenu(["An existing Menu", "My submenu"], self.list) # appends a submenu to an existing menu
+        import commands # import here all the needed files that create your FreeCAD commands
+        self.list = ["Create part", "Create dimensions", "Create sketches"] # a list of command names created in the line above
+        self.appendToolbar("Stair toolbar", self.list) # creates a new toolbar with your commands
+        self.appendMenu("Stairs", self.list) # creates a new menu
+        # self.appendMenu(["An existing Menu", "My submenu"], self.list) # appends a submenu to an existing menu
 
     def Activated(self):
         """This function is executed whenever the workbench is activated"""
@@ -32,4 +39,4 @@ class Staircase (Workbench):
         # This is not a template, the returned string should be exactly "Gui::PythonWorkbench"
         return "Gui::PythonWorkbench"
        
-Gui.addWorkbench(Staircase())
+FreeCADGui.addWorkbench(Staircase())
