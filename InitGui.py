@@ -16,7 +16,7 @@ class Staircase (Workbench):
         It is executed once in a FreeCAD session followed by the Activated function.
         """
         import commands # import here all the needed files that create your FreeCAD commands
-        self.list = ["Create part", "Create dimensions", "Create sketches"] # a list of command names created in the line above
+        self.list = ["Create dimensions", "Create sketches", "Create part"] # a list of command names created in the line above
         self.appendToolbar("Stair toolbar", self.list) # creates a new toolbar with your commands
         self.appendMenu("Stairs", self.list) # creates a new menu
         # self.appendMenu(["An existing Menu", "My submenu"], self.list) # appends a submenu to an existing menu
