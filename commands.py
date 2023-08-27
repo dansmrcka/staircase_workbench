@@ -3,6 +3,8 @@ import FreeCADGui
 import Part,PartGui 
 import Spreadsheet
 import Sketcher
+import math
+import re
 class Create_Part():
     """Create random Part object"""
 
@@ -50,21 +52,14 @@ class Generate_Spreadsheet():
         sheet.Label = "Dimensions"
         sheet.set('A1','General')
 
-        sheet.set('B2','Length')
-        sheet.setAlias('C2','length')
-        sheet.set('C2','2m')
-
-        sheet.set('B3','Width')
-        sheet.setAlias('C3','width')
-        sheet.set('C3','15dm')
-
-        sheet.set('B4','Height')
-        sheet.setAlias('C4','height')
-        sheet.set('C4','2m')
-
-        sheet.set('B5','Staircase width')
-        sheet.setAlias('C5','staircase_width')
-        sheet.set('C5','1m')
+        self.addTableElement(sheet, 'Length', 'B2', '2m', 'length')
+        self.addTableElement(sheet, 'Width', 'B3', '1.5m', 'width')
+        self.addTableElement(sheet, 'Heigth', 'B4', '2m', 'height')
+        self.addTableElement(sheet, 'Staircase width', 'B5', '1m', 'staircase_width')
+        self.addTableElement(sheet, 'Sides width', 'B6', '4.5cm', 'side_width')
+        self.addTableElement(sheet, 'Step sink', 'B7', '2cm', 'step_sink')
+        self.addTableElement(sheet, 'Wall offset', 'B8', '2cm', 'wall_offset')
+        self.addTableElement(sheet, 'Step overlay', 'B9', '2cm', 'step_overlay')
 
         doc.recompute()
         
@@ -72,6 +67,16 @@ class Generate_Spreadsheet():
         """Here you can define if the command must be active or not (greyed) if certain conditions
         are met or not. This function is optional."""
         return True
+
+    def addTableElement(self, sheet, name, name_pos, value, alias):
+
+        reg = re.findall(r'[A-Z]|[0-9]+', name_pos)
+        value_pos =chr(ord(reg[0])+1)+reg[1]
+
+        sheet.set(name_pos, name)
+        sheet.setAlias(value_pos, alias)
+        sheet.set(value_pos, value)
+        return 
 
 class Generate_Sketches():
     def GetResources(self):
@@ -86,38 +91,70 @@ class Generate_Sketches():
 
         dimensions = App.ActiveDocument.getObject("Dimensions")
 
-        l = dimensions.get('length')
-        w = dimensions.get('width')
-        h = dimensions.get('height')
+        length = dimensions.get('length')
+        width = dimensions.get('width')
+        height = dimensions.get('height')
+        stairs_width = dimensions.get('staircase_width')
+        side_width = dimensions.get('side_width')
+        step_sink = dimensions.get('step_sink')
+        wall_offset = dimensions.get('step_overlay')
+        step_overlay = dimensions.get('wall_offset')
 
-
+        # Top view
         sketchTop = doc.addObject("Sketcher::SketchObject", "Top_view")
-        sketchTop.Placement = App.Placement(App.Vector(0.000000, 0.000000, h), App.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
+        sketchTop.Placement = App.Placement(App.Vector(0.000000, 0.000000, height), App.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
         sketchTop.MapMode = "Deactivated"
 
-        (geoList, conList) = self.createRectangle(l, w)
-        conList.append(Sketcher.Constraint('DistanceX',2,1,2,2,dimensions.get('width')))
-        conList.append(Sketcher.Constraint('DistanceY', 1, 1, 1, 2, l))
-
-        sketchTop.addGeometry(geoList,False)
+        (geoList, conList) = self.createRectangle()
+        (tb, tl, tt, tr) = sketchTop.addGeometry(geoList,False)
         sketchTop.addConstraint(conList)
+        conw = sketchTop.addConstraint(Sketcher.Constraint('DistanceX',tt,1,tt,2, width))
+        conl = sketchTop.addConstraint(Sketcher.Constraint('DistanceY', tl, 1, tl, 2, length))
+        sketchTop.addConstraint(Sketcher.Constraint('Coincident',-1,1,tl,1))
 
-        del geoList, conList
+        sketchTop.setExpression(f'Constraints[{conw}]', u'Dimensions.width')
+        sketchTop.setExpression(f'Constraints[{conl}]', u'Dimensions.length')
 
+        offset = 4
+        (geoList, conList) = self.createRectangle(offset=offset)
+        (tsi1b, tsi1l, tsi1t, tsi1r) = sketchTop.addGeometry(geoList,False)
+        sketchTop.addConstraint(conList)
+        conw = sketchTop.addConstraint(Sketcher.Constraint('DistanceX',tsi1t,1, tsi1t,2, side_width))
+        sketchTop.addConstraint(Sketcher.Constraint('DistanceX',-1,1,tsi1b, 2, wall_offset))
+        sketchTop.addConstraint(Sketcher.Constraint('PointOnObject',tsi1b,1, tb))
+        sketchTop.addConstraint(Sketcher.Constraint('PointOnObject',tsi1t,1, tt))
+
+        offset = 8
+        (geoList, conList) = self.createRectangle(offset=offset)
+        (tsi2b, tsi2l, tsi2t, tsi2r) = sketchTop.addGeometry(geoList,False)
+        sketchTop.addConstraint(conList)
+        conw = sketchTop.addConstraint(Sketcher.Constraint('DistanceX',tsi2t,1, tsi2t,2, side_width))
+        sketchTop.addConstraint(Sketcher.Constraint('DistanceX',-1,1,tsi2b, 1, wall_offset+stairs_width))
+        sketchTop.addConstraint(Sketcher.Constraint('PointOnObject',tsi2b,1, tb))
+        sketchTop.addConstraint(Sketcher.Constraint('PointOnObject',tsi2t,1, tt))
+
+        num_of_stairs = math.floor(height.Value/200)
+        step_width = length.Value/num_of_stairs
+        print(num_of_stairs)
+        print(step_width)
+        for i in range(0,num_of_stairs):
+            offset = 12 + 4*i
+            (geoList, conList) = self.createRectangle(x=App.Units.Quantity(stairs_width-2*(side_width-step_sink)), y=App.Units.Quantity(step_width), offset=offset, originx=App.Units.Quantity(wall_offset+side_width-step_sink), originy=i*App.Units.Quantity(step_width))
+            sketchTop.addGeometry(geoList,False)
+            sketchTop.addConstraint(conList)
+
+        # Side view
         sketchLeft = doc.addObject("Sketcher::SketchObject", "Left_side")
         sketchLeft.Placement = App.Placement(App.Vector(0.000000, 0.000000, 0.000000), App.Rotation(0.500000, 0.500000, 0.500000, 0.500000))
         sketchLeft.MapMode = "Deactivated"
 
-        (geoList, conList) = self.createRectangle(l, h)
+        (geoList, conList) = self.createRectangle()
+        conList.append(Sketcher.Constraint('DistanceX',2,1,2,2, length))
+        conList.append(Sketcher.Constraint('DistanceY', 1, 1, 1, 2, App.Units.Quantity('-1.0 dm')))
+        conList.append(Sketcher.Constraint('Coincident',-1,1,1,1))
         sketchLeft.addGeometry(geoList,False)
         sketchLeft.addConstraint(conList)
-
-        # sketchLeft.addGeometry(Part.LineSegment(App.Vector(1.2, 1.8, 0), App.Vector(5.2, 5.3, 0)), False)
-        # # sketch.addConstraint(Sketcher.Constraint("Distance", 0, 1, 0, 2, sheet.get('A1')))
-
-        # sketchRight = doc.addObject("Sketcher::SketchObject", "Right_side")
-        # sketchRight.addGeometry(Part.LineSegment(App.Vector(1.2, 1.8, 0), App.Vector(5.2, 5.3, 0)), False)
-        # # sketch.addConstraint(Sketcher.Constraint("Distance", 0, 1, 0, 2, sheet.get('A1')))
+        del geoList, conList
         doc.recompute()
 
     def IsActive(self):
@@ -125,11 +162,11 @@ class Generate_Sketches():
         are met or not. This function is optional."""
         return True
 
-    def createRectangle(self, length, width):
-        V1 = App.Vector(0, 0, 0)
-        V2 = App.Vector(0, length, 0)
-        V3 = App.Vector(width, length, 0)
-        V4 = App.Vector(width, 0, 0)
+    def createRectangle(self, x=App.Units.Quantity('10.0 mm'), y=App.Units.Quantity('10.0 mm'), originx=App.Units.Quantity('0.0 mm'), originy=App.Units.Quantity('0.0 mm'), offset=0):
+        V1 = App.Vector(originx, originy, 0)
+        V2 = App.Vector(originx, originy+y, 0)
+        V3 = App.Vector(originx+x, originy+y, 0)
+        V4 = App.Vector(originx+x, originy, 0)
 
         geoList = []
         geoList.append(Part.LineSegment(V1, V2))
@@ -138,19 +175,16 @@ class Generate_Sketches():
         geoList.append(Part.LineSegment(V4, V1))
 
         conList = []
-        conList.append(Sketcher.Constraint('Coincident',0,2,1,1))
-        conList.append(Sketcher.Constraint('Coincident',1,2,2,1))
-        conList.append(Sketcher.Constraint('Coincident',2,2,3,1))
-        conList.append(Sketcher.Constraint('Coincident',3,2,0,1))
-        conList.append(Sketcher.Constraint('Horizontal',0))
-        conList.append(Sketcher.Constraint('Horizontal',2))
-        conList.append(Sketcher.Constraint('Vertical',1))
-        conList.append(Sketcher.Constraint('Vertical',3))
-
-        # conList.append(Sketcher.Constraint('Coincident',-1,1,0,1))
+        conList.append(Sketcher.Constraint('Coincident',0+offset,2,1+offset,1))
+        conList.append(Sketcher.Constraint('Coincident',1+offset,2,2+offset,1))
+        conList.append(Sketcher.Constraint('Coincident',2+offset,2,3+offset,1))
+        conList.append(Sketcher.Constraint('Coincident',3+offset,2,0+offset,1))
+        conList.append(Sketcher.Constraint('Horizontal',0+offset))
+        conList.append(Sketcher.Constraint('Horizontal',2+offset))
+        conList.append(Sketcher.Constraint('Vertical',1+offset))
+        conList.append(Sketcher.Constraint('Vertical',3+offset))
 
         return geoList, conList
-
 
 
 FreeCADGui.addCommand("Create part", Create_Part())
