@@ -1,6 +1,7 @@
 import FreeCAD, FreeCADGui
 
 class Staircase (Workbench):
+    """This function is executed when the workbench is first activated. """
 
     import os
     import empty
@@ -34,9 +35,9 @@ class Staircase (Workbench):
         # "recipient" will be either "view" or "tree"
         self.appendContextMenu("My commands", self.list) # add commands to the context menu
 
-    def GetClassName(self): 
+    def GetClassName(self):
         # This function is mandatory if this is a full Python workbench
         # This is not a template, the returned string should be exactly "Gui::PythonWorkbench"
         return "Gui::PythonWorkbench"
-       
+
 FreeCADGui.addWorkbench(Staircase())
