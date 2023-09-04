@@ -18,7 +18,7 @@ class CreatePart():
         """
         TODO
         """
-        return {"Pixmap": "My_Command_Icon", # the name of a svg file available in the resources
+        return {"Pixmap": "My_Command_Icon",  # the name of a svg file available in the resources
                 "MenuText": "Testing object",
                 "ToolTip": "Create random object"}
 
@@ -63,7 +63,7 @@ class GenerateSpreadsheet():
         """
         TODO
         """
-        return {"Pixmap": "My_Command_Icon", # the name of a svg file available in the resources
+        return {"Pixmap": "My_Command_Icon",  # the name of a svg file available in the resources
                 "MenuText": "Add table",
                 "ToolTip": "table"}
 
@@ -122,8 +122,8 @@ class GenerateSketches():
         """
         TODO
         """
-        return {"Pixmap": "My_Command_Icon", # the name of a svg file available in the resources
-                "Accel": "Shift+S", # a default shortcut (optional)
+        return {"Pixmap": "My_Command_Icon",  # the name of a svg file available in the resources
+                "Accel": "Shift+S",  # a default shortcut (optional)
                 "MenuText": "Add high-level sketches",
                 "ToolTip": "sketches"}
 
@@ -212,14 +212,14 @@ class GenerateSketches():
         con_list.append(Sketcher.Constraint('DistanceX', 2, 1, 2, 2, length))
         con_list.append(Sketcher.Constraint('DistanceY', 1, 1, 1, 2, App.Units.Quantity('1.0 dm')))
         con_list.append(Sketcher.Constraint('Coincident', -1, 1, 1, 1))
-        sketch_left.addGeometry(geo_list, .False)
+        sketch_left.addGeometry(geo_list, False)
         sketch_left.addConstraint(con_list)
         del geo_list, con_list
 
         # create side - polyline
         for i in range(0, num_of_stairs):
             offset = 4 + 4 * i
-            if i == num_of_stairs - 1: # last step
+            if i == num_of_stairs - 1:  # last step
                 (geo_list, con_list) = self.create_rectangle(x=App.Units.Quantity(-last_step_width.Value), y=App.Units.Quantity(stair_thick.Value), offset=offset, originx=-App.Units.Quantity(first_step_dist.Value + i * step_width), originy=App.Units.Quantity((i + 1) * step_height - stair_thick.Value))
             else:
                 (geo_list, con_list) = self.create_rectangle(x=App.Units.Quantity(-step_width), y=App.Units.Quantity(stair_thick.Value), offset=offset, originx=-App.Units.Quantity(first_step_dist.Value + i * step_width), originy=App.Units.Quantity((i + 1) * step_height - stair_thick.Value))
