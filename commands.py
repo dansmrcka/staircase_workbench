@@ -2,50 +2,9 @@ import math
 import re
 
 import FreeCAD as App
-import FreeCADGui
+import FreeCADGui as Gui
 import Part
 import Sketcher
-
-
-class CreatePart():
-    """
-    Create random Part object
-    """
-
-    def GetResources(self):
-        """
-        TODO
-        """
-        return {"Pixmap": "My_Command_Icon",  # the name of a svg file available in the resources
-                "MenuText": "Testing object",
-                "ToolTip": "Create random object"}
-
-    def Activated(self):
-        """
-        TODO
-        """
-        doc = App.activeDocument()
-        group = App.ActiveDocument.addObject("App::DocumentObjectGroup", "Model")
-
-        mySketch = "stair_0"
-        wire = App.ActiveDocument.stair_0.Shape.Wires[0]
-        face = Part.Face(wire)
-        extr = face.extrude(App.Vector(0, 0, -25))
-        stair = Part.show(extr)
-        stair.Label = mySketch
-
-        group.addObject(stair)
-
-        doc.recompute()
-
-        App.Console.PrintMessage('Done!\n')
-
-    def IsActive(self):
-        """
-        Here you can define if the command must be active or not (greyed) if certain conditions
-        are met or not. This function is optional.
-        """
-        return True
 
 
 class GenerateSpreadsheet():
@@ -152,39 +111,39 @@ class GenerateSketches():
         print("Number of stairs: %d, height between steps %f" % (num_of_stairs, step_height))
 
         # Top view
-        sketch_top = App.ActiveDocument.addObject("Sketcher::SketchObject", "Top_view")
-        sketch_top.Placement = App.Placement(App.Vector(0.000000, 0.000000, height), App.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
-        sketch_top.MapMode = "Deactivated"
+        aux_top = App.ActiveDocument.addObject("Sketcher::SketchObject", "aux_top")
+        aux_top.Placement = App.Placement(App.Vector(0.000000, 0.000000, height), App.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
+        aux_top.MapMode = "Deactivated"
 
         (geo_list, con_list) = self.create_rectangle()
-        (tb, tl, tt, _) = sketch_top.addGeometry(geo_list, True)
-        sketch_top.addConstraint(con_list)
-        conw = sketch_top.addConstraint(Sketcher.Constraint('DistanceX', tt, 1, tt, 2, width))
-        conl = sketch_top.addConstraint(Sketcher.Constraint('DistanceY', tl, 1, tl, 2, length))
-        sketch_top.addConstraint(Sketcher.Constraint('Coincident', -1, 1, tl, 1))
+        (tb, tl, tt, _) = aux_top.addGeometry(geo_list, False)
+        aux_top.addConstraint(con_list)
+        conw = aux_top.addConstraint(Sketcher.Constraint('DistanceX', tt, 1, tt, 2, width))
+        conl = aux_top.addConstraint(Sketcher.Constraint('DistanceY', tl, 1, tl, 2, length))
+        aux_top.addConstraint(Sketcher.Constraint('Coincident', -1, 1, tl, 1))
 
-        sketch_top.setExpression(f'Constraints[{conw}]', 'Dimensions.width')
-        sketch_top.setExpression(f'Constraints[{conl}]', 'Dimensions.length')
+        aux_top.setExpression(f'Constraints[{conw}]', 'Dimensions.width')
+        aux_top.setExpression(f'Constraints[{conl}]', 'Dimensions.length')
 
         offset = 4
         (geo_list, con_list) = self.create_rectangle(offset=offset)
-        (tsi1b, _, tsi1t, _) = sketch_top.addGeometry(geo_list, False)
-        sketch_top.addConstraint(con_list)
-        conw = sketch_top.addConstraint(Sketcher.Constraint('DistanceX', tsi1t, 1, tsi1t, 2, side_width))
-        sketch_top.addConstraint(Sketcher.Constraint('DistanceX', -1, 1, tsi1b, 2, wall_offset))
-        sketch_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi1b, 1, tb))
-        sketch_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi1t, 1, tt))
+        (tsi1b, _, tsi1t, _) = aux_top.addGeometry(geo_list, False)
+        aux_top.addConstraint(con_list)
+        conw = aux_top.addConstraint(Sketcher.Constraint('DistanceX', tsi1t, 1, tsi1t, 2, side_width))
+        aux_top.addConstraint(Sketcher.Constraint('DistanceX', -1, 1, tsi1b, 2, wall_offset))
+        aux_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi1b, 1, tb))
+        aux_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi1t, 1, tt))
 
         offset = 8
         (geo_list, con_list) = self.create_rectangle(offset=offset)
-        (tsi2b, _, tsi2t, _) = sketch_top.addGeometry(geo_list, False)
-        sketch_top.addConstraint(con_list)
-        conw = sketch_top.addConstraint(Sketcher.Constraint('DistanceX', tsi2t, 1, tsi2t, 2, side_width))
-        sketch_top.addConstraint(Sketcher.Constraint('DistanceX', -1, 1, tsi2b, 1, wall_offset + stairs_width))
-        sketch_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi2b, 1, tb))
-        sketch_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi2t, 1, tt))
+        (tsi2b, _, tsi2t, _) = aux_top.addGeometry(geo_list, False)
+        aux_top.addConstraint(con_list)
+        conw = aux_top.addConstraint(Sketcher.Constraint('DistanceX', tsi2t, 1, tsi2t, 2, side_width))
+        aux_top.addConstraint(Sketcher.Constraint('DistanceX', -1, 1, tsi2b, 1, wall_offset + stairs_width))
+        aux_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi2b, 1, tb))
+        aux_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi2t, 1, tt))
 
-        group.addObject(sketch_top)
+        group.addObject(aux_top)
 
         for i in range(0, num_of_stairs):
             offset = 0
@@ -202,18 +161,17 @@ class GenerateSketches():
             group.addObject(sketch)
 
         # Side view
-        sketch_left = App.ActiveDocument.addObject("Sketcher::SketchObject", "Left_side")
-        sketch_left.Placement = App.Placement(App.Vector(0.000000, 0.000000, 0.000000), App.Rotation(0.500000, 0.500000, 0.500000, 0.500000))
-        sketch_left.MapMode = "Deactivated"
+        aux_left = App.ActiveDocument.addObject("Sketcher::SketchObject", "aux_side")
+        aux_left.Placement = App.Placement(App.Vector(wall_offset, 0.000000, 0.000000), App.Rotation(0.500000, 0.500000, 0.500000, 0.500000))
+        aux_left.MapMode = "Deactivated"
 
         # floor
         (geo_list, con_list) = self.create_rectangle()
         con_list.append(Sketcher.Constraint('DistanceX', 2, 1, 2, 2, length))
         con_list.append(Sketcher.Constraint('DistanceY', 1, 1, 1, 2, App.Units.Quantity('-1.0 dm')))
         con_list.append(Sketcher.Constraint('Coincident', -1, 1, 1, 1))
-        sketch_left.addGeometry(geo_list, True)
-        sketch_left.addConstraint(con_list)
-        del geo_list, con_list
+        aux_left.addGeometry(geo_list, False)
+        aux_left.addConstraint(con_list)
 
         # create stairs
         for i in range(0, num_of_stairs):
@@ -222,15 +180,32 @@ class GenerateSketches():
                 (geo_list, con_list) = self.create_rectangle(x=App.Units.Quantity(last_step_width.Value), y=App.Units.Quantity(stair_thick.Value), offset=offset, originx=App.Units.Quantity(first_step_dist.Value + i * step_width), originy=App.Units.Quantity((i + 1) * step_height - stair_thick.Value))
             else:
                 (geo_list, con_list) = self.create_rectangle(x=App.Units.Quantity(step_width + step_overlay.Value), y=App.Units.Quantity(stair_thick.Value), offset=offset, originx=App.Units.Quantity(first_step_dist.Value + i * step_width), originy=App.Units.Quantity((i + 1) * step_height - stair_thick.Value))
-            sketch_left.addGeometry(geo_list, False)
-            sketch_left.addConstraint(con_list)
+            aux_left.addGeometry(geo_list, False)
+            aux_left.addConstraint(con_list)
 
-        # create side - polyline
-        (geo_list, con_list) = self.create_side(length.Value, height.Value, step_height, step_width, last_step_width.Value, offset=4 + 4 * num_of_stairs)
-        sketch_left.addGeometry(geo_list, False)
-        sketch_left.addConstraint(con_list)
+        group.addObject(aux_left)
 
-        group.addObject(sketch_left)
+        # create sides - polyline
+        side_0 = App.ActiveDocument.addObject("Sketcher::SketchObject", "side_0")
+        side_0.Placement = App.Placement(App.Vector(wall_offset, 0.000000, 0.000000), App.Rotation(0.500000, 0.500000, 0.500000, 0.500000))
+        side_0.MapMode = "Deactivated"
+
+        (geo_list, con_list) = self.create_side(length.Value, height.Value, step_height, step_width, last_step_width.Value)
+        side_0.addGeometry(geo_list, False)
+        side_0.addConstraint(con_list)
+
+        group.addObject(side_0)
+
+        side_1 = App.ActiveDocument.addObject("Sketcher::SketchObject", "side_1")
+        side_1.Placement = App.Placement(App.Vector(wall_offset + stairs_width, 0.000000, 0.000000), App.Rotation(0.500000, 0.500000, 0.500000, 0.500000))
+        side_1.MapMode = "Deactivated"
+
+        (geo_list, con_list) = self.create_side(length.Value, height.Value, step_height, step_width, last_step_width.Value)
+        side_1.addGeometry(geo_list, False)
+        side_1.addConstraint(con_list)
+
+        group.addObject(side_1)
+        del geo_list, con_list
 
         doc.recompute()
 
@@ -268,7 +243,7 @@ class GenerateSketches():
 
         return geo_list, con_list
 
-    def create_side(self, length, height, step_height, step_width, last_step_width, offset):
+    def create_side(self, length, height, step_height, step_width, last_step_width, offset=0):
         """
         TODO
         """
@@ -299,6 +274,130 @@ class GenerateSketches():
         return geo_list, con_list
 
 
-FreeCADGui.addCommand("Create part", CreatePart())
-FreeCADGui.addCommand("Create dimensions", GenerateSpreadsheet())
-FreeCADGui.addCommand("Create sketches", GenerateSketches())
+class CreatePart():
+    """
+    Create
+    """
+
+    def GetResources(self):
+        """
+        TODO
+        """
+        return {"Pixmap": "My_Command_Icon",  # the name of a svg file available in the resources
+                "MenuText": "Testing object",
+                "ToolTip": "Create random object"}
+
+    def Activated(self):
+        """
+        TODO
+        """
+        doc = App.activeDocument()
+        group = App.ActiveDocument.addObject("App::DocumentObjectGroup", "Model")
+        dimensions = App.ActiveDocument.getObject("Dimensions")
+
+        stair_thick = dimensions.get('stair_thick')
+        side_width = dimensions.get('side_width')
+        num_of_stairs = 10
+
+        sides = []
+        for i in range(0, 2):
+            name = "side_" + str(i)
+
+            side = App.ActiveDocument.addObject('Part::Extrusion', name + "_bd")
+            side.Base = App.ActiveDocument.getObject(name)
+            side.DirMode = "Normal"
+            side.DirLink = None
+            if i == 0:
+                side.LengthFwd = side_width
+            else:
+                side.LengthFwd = -side_width
+
+            side.LengthRev = 0.000000000000000
+            side.Solid = True
+            side.Reversed = False
+            side.Symmetric = False
+            side.TaperAngle = 0.000000000000000
+            side.TaperAngleRev = 0.000000000000000
+
+            group.addObject(side)
+            sides.append(name + "_bd")
+
+        for i in range(0, num_of_stairs):
+            name = "stair_" + str(i)
+
+            stair = App.ActiveDocument.addObject('Part::Extrusion', name + "_bd")
+            stair.Base = App.ActiveDocument.getObject(name)
+            stair.DirMode = "Normal"
+            stair.DirLink = None
+            stair.LengthFwd = -stair_thick
+            stair.LengthRev = 0.000000000000000
+            stair.Solid = True
+            stair.Reversed = False
+            stair.Symmetric = False
+            stair.TaperAngle = 0.000000000000000
+            stair.TaperAngleRev = 0.000000000000000
+
+            group.addObject(stair)
+
+        doc.recompute()
+
+        App.Console.PrintMessage('Done!\n')
+
+    def IsActive(self):
+        """
+        Here you can define if the command must be active or not (greyed) if certain conditions
+        are met or not. This function is optional.
+        """
+        return True
+
+
+class CutStairs():
+    """
+    Cut
+    """
+
+    def GetResources(self):
+        """
+        TODO
+        """
+        return {"Pixmap": "My_Command_Icon",  # the name of a svg file available in the resources
+                "MenuText": "Testing object",
+                "ToolTip": "Create random object"}
+
+    def Activated(self):
+        """
+        TODO
+        """
+        doc = App.activeDocument()
+        group = App.ActiveDocument.addObject("App::DocumentObjectGroup", "Cuts")
+        # dimensions = App.ActiveDocument.getObject("Dimensions")
+
+        num_of_stairs = 10
+
+        for i in range(0, num_of_stairs):
+            name = "stair_" + str(i)
+            cut1 = App.activeDocument().addObject("Part::Cut", "side_0_bd" + str(i))
+            if i == 0:
+                cut1.Base = eval("App.activeDocument()." + "side_0_bd")
+            else:
+                cut1.Base = eval("App.activeDocument()." + "side_0_bd" + str(i - 1))
+            cut1.Tool = eval("App.activeDocument()." + name + "_bd")
+            # eval("Gui.ActiveDocument." + name + "_bd" + ".Visibility=True")
+
+        group.addObject(cut1)
+        doc.recompute()
+
+        App.Console.PrintMessage('Cutting stairs done!\n')
+
+    def IsActive(self):
+        """
+        Here you can define if the command must be active or not (greyed) if certain conditions
+        are met or not. This function is optional.
+        """
+        return True
+
+
+Gui.addCommand("Create dimensions", GenerateSpreadsheet())
+Gui.addCommand("Create sketches", GenerateSketches())
+Gui.addCommand("Create part", CreatePart())
+Gui.addCommand("Cut stairs", CutStairs())
