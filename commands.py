@@ -4,8 +4,6 @@ import re
 import FreeCAD as App
 import FreeCADGui
 import Part
-import PartGui
-import Spreadsheet
 import Sketcher
 
 
@@ -26,24 +24,19 @@ class CreatePart():
         """
         TODO
         """
+        doc = App.activeDocument()
+        group = App.ActiveDocument.addObject("App::DocumentObjectGroup", "Model")
 
-        doc = App.ActiveDocument()
-        # add a line element to the document and set its points
-        line = Part.LineSegment()
-        line.StartPoint = (0.0, 0.0, 0.0)
-        line.EndPoint = (1.0, 1.0, 1.0)
-        doc.addObject("Part::Feature", "Line").Shape = line.toShape()
+        mySketch = "stair_0"
+        wire = App.ActiveDocument.stair_0.Shape.Wires[0]
+        face = Part.Face(wire)
+        extr = face.extrude(App.Vector(0, 0, -25))
+        stair = Part.show(extr)
+        stair.Label = mySketch
+
+        group.addObject(stair)
+
         doc.recompute()
-
-        box = Part.makeBox(100, 20, 5)
-        # tube = circle.extrude(App.Vector(0, 0, 2))
-        Part.show(box)
-
-        # polygon = Part.makePolygon([App.Vector(0, 5, 0), App.Vector(10, 0, 0), App.Vector(5, 5, 0), App.Vector(0, 5, 0)])
-        # stair_face = Part.Face(polygon)
-        # Part.show(stair_face.extrude(App.Vector(0, 0, 5)))
-        # object = (stair_face.extrude(App.Vector(0, 0, 5)))
-        # Part.show(object.translate(App.Vector(0, 0, 20)))
 
         App.Console.PrintMessage('Done!\n')
 
@@ -164,7 +157,7 @@ class GenerateSketches():
         sketch_top.MapMode = "Deactivated"
 
         (geo_list, con_list) = self.create_rectangle()
-        (tb, tl, tt, _) = sketch_top.addGeometry(geo_list, False)
+        (tb, tl, tt, _) = sketch_top.addGeometry(geo_list, True)
         sketch_top.addConstraint(con_list)
         conw = sketch_top.addConstraint(Sketcher.Constraint('DistanceX', tt, 1, tt, 2, width))
         conl = sketch_top.addConstraint(Sketcher.Constraint('DistanceY', tl, 1, tl, 2, length))
@@ -191,16 +184,22 @@ class GenerateSketches():
         sketch_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi2b, 1, tb))
         sketch_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi2t, 1, tt))
 
+        group.addObject(sketch_top)
+
         for i in range(0, num_of_stairs):
-            offset = 12 + 4 * i
+            offset = 0
+            name = "stair_" + str(i)
+            sketch = App.ActiveDocument.addObject("Sketcher::SketchObject", name)
+            sketch.Placement = App.Placement(App.Vector(0.000000, 0.000000, (i + 1) * step_height), App.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
+            sketch.MapMode = "Deactivated"
             if i == num_of_stairs - 1:  # last step
                 (geo_list, con_list) = self.create_rectangle(x=App.Units.Quantity(stairs_width - 2 * (side_width - step_sink)), y=App.Units.Quantity(last_step_width.Value), offset=offset, originx=App.Units.Quantity(wall_offset + side_width - step_sink), originy=App.Units.Quantity(first_step_dist.Value) + i * App.Units.Quantity(step_width))
             else:
                 (geo_list, con_list) = self.create_rectangle(x=App.Units.Quantity(stairs_width - 2 * (side_width - step_sink)), y=App.Units.Quantity(step_width + step_overlay.Value), offset=offset, originx=App.Units.Quantity(wall_offset + side_width - step_sink), originy=App.Units.Quantity(first_step_dist.Value) + i * App.Units.Quantity(step_width))
-            sketch_top.addGeometry(geo_list, False)
-            sketch_top.addConstraint(con_list)
+            sketch.addGeometry(geo_list, False)
+            sketch.addConstraint(con_list)
 
-        group.addObject(sketch_top)
+            group.addObject(sketch)
 
         # Side view
         sketch_left = App.ActiveDocument.addObject("Sketcher::SketchObject", "Left_side")
@@ -210,23 +209,24 @@ class GenerateSketches():
         # floor
         (geo_list, con_list) = self.create_rectangle()
         con_list.append(Sketcher.Constraint('DistanceX', 2, 1, 2, 2, length))
-        con_list.append(Sketcher.Constraint('DistanceY', 1, 1, 1, 2, App.Units.Quantity('1.0 dm')))
+        con_list.append(Sketcher.Constraint('DistanceY', 1, 1, 1, 2, App.Units.Quantity('-1.0 dm')))
         con_list.append(Sketcher.Constraint('Coincident', -1, 1, 1, 1))
-        sketch_left.addGeometry(geo_list, False)
+        sketch_left.addGeometry(geo_list, True)
         sketch_left.addConstraint(con_list)
         del geo_list, con_list
 
-        # create side - polyline
+        # create stairs
         for i in range(0, num_of_stairs):
             offset = 4 + 4 * i
             if i == num_of_stairs - 1:  # last step
-                (geo_list, con_list) = self.create_rectangle(x=App.Units.Quantity(-last_step_width.Value), y=App.Units.Quantity(stair_thick.Value), offset=offset, originx=-App.Units.Quantity(first_step_dist.Value + i * step_width), originy=App.Units.Quantity((i + 1) * step_height - stair_thick.Value))
+                (geo_list, con_list) = self.create_rectangle(x=App.Units.Quantity(last_step_width.Value), y=App.Units.Quantity(stair_thick.Value), offset=offset, originx=App.Units.Quantity(first_step_dist.Value + i * step_width), originy=App.Units.Quantity((i + 1) * step_height - stair_thick.Value))
             else:
-                (geo_list, con_list) = self.create_rectangle(x=App.Units.Quantity(-step_width), y=App.Units.Quantity(stair_thick.Value), offset=offset, originx=-App.Units.Quantity(first_step_dist.Value + i * step_width), originy=App.Units.Quantity((i + 1) * step_height - stair_thick.Value))
+                (geo_list, con_list) = self.create_rectangle(x=App.Units.Quantity(step_width + step_overlay.Value), y=App.Units.Quantity(stair_thick.Value), offset=offset, originx=App.Units.Quantity(first_step_dist.Value + i * step_width), originy=App.Units.Quantity((i + 1) * step_height - stair_thick.Value))
             sketch_left.addGeometry(geo_list, False)
             sketch_left.addConstraint(con_list)
 
-        (geo_list, con_list) = self.create_side(-length.Value, height.Value, step_height, -step_width, -last_step_width.Value, offset=4 + 4 * num_of_stairs)
+        # create side - polyline
+        (geo_list, con_list) = self.create_side(length.Value, height.Value, step_height, step_width, last_step_width.Value, offset=4 + 4 * num_of_stairs)
         sketch_left.addGeometry(geo_list, False)
         sketch_left.addConstraint(con_list)
 
