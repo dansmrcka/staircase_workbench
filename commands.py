@@ -1,5 +1,6 @@
 import math
 import re
+import os
 
 import FreeCAD as App
 import FreeCADGui as Gui
@@ -87,7 +88,10 @@ class GenerateSketches():
 
         doc = App.activeDocument()
 
-        group = App.ActiveDocument.addObject("App::DocumentObjectGroup", "Sketches")
+        group = App.ActiveDocument.addObject("App::DocumentObjectGroup", "sketches")
+
+        auxiliary_group = App.ActiveDocument.addObject("App::DocumentObjectGroup", "auxiliary")
+        group.addObject(auxiliary_group)
 
         dimensions = App.ActiveDocument.getObject("Dimensions")
 
@@ -110,11 +114,12 @@ class GenerateSketches():
 
         print("Number of stairs: %d, height between steps %f" % (num_of_stairs, step_height))
 
-        # Top view
+        # # Top view
         aux_top = App.ActiveDocument.addObject("Sketcher::SketchObject", "aux_top")
         aux_top.Placement = App.Placement(App.Vector(0.000000, 0.000000, height), App.Rotation(0.000000, 0.000000, 0.000000, 1.000000))
         aux_top.MapMode = "Deactivated"
 
+        # hole
         (geo_list, con_list) = self.create_rectangle()
         (tb, tl, tt, _) = aux_top.addGeometry(geo_list, False)
         aux_top.addConstraint(con_list)
@@ -125,6 +130,7 @@ class GenerateSketches():
         aux_top.setExpression(f'Constraints[{conw}]', 'Dimensions.width')
         aux_top.setExpression(f'Constraints[{conl}]', 'Dimensions.length')
 
+        # side one
         offset = 4
         (geo_list, con_list) = self.create_rectangle(offset=offset)
         (tsi1b, _, tsi1t, _) = aux_top.addGeometry(geo_list, False)
@@ -134,6 +140,7 @@ class GenerateSketches():
         aux_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi1b, 1, tb))
         aux_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi1t, 1, tt))
 
+        # side two
         offset = 8
         (geo_list, con_list) = self.create_rectangle(offset=offset)
         (tsi2b, _, tsi2t, _) = aux_top.addGeometry(geo_list, False)
@@ -143,8 +150,9 @@ class GenerateSketches():
         aux_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi2b, 1, tb))
         aux_top.addConstraint(Sketcher.Constraint('PointOnObject', tsi2t, 1, tt))
 
-        group.addObject(aux_top)
+        auxiliary_group.addObject(aux_top)
 
+        # stairs top
         for i in range(0, num_of_stairs):
             offset = 0
             name = "stair_" + str(i)
@@ -160,7 +168,7 @@ class GenerateSketches():
 
             group.addObject(sketch)
 
-        # Side view
+        # # Side view
         aux_left = App.ActiveDocument.addObject("Sketcher::SketchObject", "aux_side")
         aux_left.Placement = App.Placement(App.Vector(wall_offset, 0.000000, 0.000000), App.Rotation(0.500000, 0.500000, 0.500000, 0.500000))
         aux_left.MapMode = "Deactivated"
@@ -173,17 +181,25 @@ class GenerateSketches():
         aux_left.addGeometry(geo_list, False)
         aux_left.addConstraint(con_list)
 
-        # create stairs
+        auxiliary_group.addObject(aux_left)
+
+        # create stairs side
         for i in range(0, num_of_stairs):
-            offset = 4 + 4 * i
+            name = "stair_" + str(i) + "_side"
+            stair_side = App.ActiveDocument.addObject("Sketcher::SketchObject", name)
+            stair_side.Placement = App.Placement(App.Vector(wall_offset, 0.000000, 0.000000), App.Rotation(0.500000, 0.500000, 0.500000, 0.500000))
+            stair_side.MapMode = "Deactivated"
+
             if i == num_of_stairs - 1:  # last step
                 (geo_list, con_list) = self.create_rectangle(x=App.Units.Quantity(last_step_width.Value), y=App.Units.Quantity(stair_thick.Value), offset=offset, originx=App.Units.Quantity(first_step_dist.Value + i * step_width), originy=App.Units.Quantity((i + 1) * step_height - stair_thick.Value))
             else:
                 (geo_list, con_list) = self.create_rectangle(x=App.Units.Quantity(step_width + step_overlay.Value), y=App.Units.Quantity(stair_thick.Value), offset=offset, originx=App.Units.Quantity(first_step_dist.Value + i * step_width), originy=App.Units.Quantity((i + 1) * step_height - stair_thick.Value))
-            aux_left.addGeometry(geo_list, False)
-            aux_left.addConstraint(con_list)
+            stair_side.addGeometry(geo_list, False)
+            stair_side.addConstraint(con_list)
 
-        group.addObject(aux_left)
+            auxiliary_group.addObject(stair_side)
+
+        doc.recompute()
 
         # create sides - polyline
         side_0 = App.ActiveDocument.addObject("Sketcher::SketchObject", "side_0")
@@ -249,27 +265,56 @@ class GenerateSketches():
         """
         V1 = App.Vector(0, 0, 0)
         V2 = App.Vector(0, 1.5 * step_height, 0)
-        V3 = App.Vector(length - 1.5 * last_step_width, height + 40, 0)
+        V3 = App.Vector(length - 1.0 * last_step_width, height + 40, 0)
         V4 = App.Vector(length, height + 40, 0)
         V5 = App.Vector(length, height + 40 - 2 * step_height, 0)
         V6 = App.Vector(step_width, 0, 0)
 
+        top_points = []
+        bottom_points = []
+
+        top_points.append((V2.x, V2.y))
+        bottom_points.append((V6.x, V6.y))
+
+        num_of_stairs = 10
+        for i in range(1, num_of_stairs):
+            name = "stair_" + str(i) + "_side"
+            stair = App.ActiveDocument.getObject(name)
+            bottom_point = stair.Shape.Vertexes[0]
+            bottom_points.append((bottom_point.Y, bottom_point.Z))
+            top_point = stair.Shape.Vertexes[2]
+            top_points.append((top_point.Y, top_point.Z))
+
+        top_points.append((V3.x, V3.y))
+        bottom_points.append((V5.x, V5.y))
+
         geo_list = []
         geo_list.append(Part.LineSegment(V1, V2))
-        geo_list.append(Part.LineSegment(V2, V3))
+
+        pointlst = []
+        pointlst.append(V2)
+        for i in range(1, num_of_stairs):
+            point_x = top_points[i][0]
+            point_y = top_points[i][1]
+            v = App.Vector(point_x, point_y + 30, 0)  # TODO: calculate proper coordinates
+            pointlst.append(v)
+            geo_list.append(Part.Point(v))
+
+        pointlst.append(V3)
+        geo_list.append(Part.BSplineCurve(pointlst, None, None, False, 3, None, False))
+
         geo_list.append(Part.LineSegment(V3, V4))
         geo_list.append(Part.LineSegment(V4, V5))
-        geo_list.append(Part.LineSegment(V5, V6))
         geo_list.append(Part.LineSegment(V6, V1))
 
         con_list = []
 
-        con_list.append(Sketcher.Constraint('Coincident', 0 + offset, 2, 1 + offset, 1))
-        con_list.append(Sketcher.Constraint('Coincident', 1 + offset, 2, 2 + offset, 1))
-        con_list.append(Sketcher.Constraint('Coincident', 2 + offset, 2, 3 + offset, 1))
-        con_list.append(Sketcher.Constraint('Coincident', 3 + offset, 2, 4 + offset, 1))
-        con_list.append(Sketcher.Constraint('Coincident', 4 + offset, 2, 5 + offset, 1))
-        con_list.append(Sketcher.Constraint('Coincident', 5 + offset, 2, 0 + offset, 1))
+        # con_list.append(Sketcher.Constraint('Coincident', 0 + offset, 2, 1 + offset, 1))
+        # con_list.append(Sketcher.Constraint('Coincident', 1 + offset, 2, 2 + offset, 1))
+        # con_list.append(Sketcher.Constraint('Coincident', 2 + offset, 2, 3 + offset, 1))
+        # con_list.append(Sketcher.Constraint('Coincident', 3 + offset, 2, 4 + offset, 1))
+        # con_list.append(Sketcher.Constraint('Coincident', 4 + offset, 2, 5 + offset, 1))
+        # con_list.append(Sketcher.Constraint('Coincident', 5 + offset, 2, 0 + offset, 1))
 
         return geo_list, con_list
 
@@ -376,18 +421,69 @@ class CutStairs():
 
         for i in range(0, num_of_stairs):
             name = "stair_" + str(i)
+            stair = eval("App.activeDocument()." + name + "_bd")
             cut1 = App.activeDocument().addObject("Part::Cut", "side_0_bd" + str(i))
+            cut2 = App.activeDocument().addObject("Part::Cut", "side_1_bd" + str(i))
             if i == 0:
                 cut1.Base = eval("App.activeDocument()." + "side_0_bd")
+                cut2.Base = eval("App.activeDocument()." + "side_1_bd")
             else:
                 cut1.Base = eval("App.activeDocument()." + "side_0_bd" + str(i - 1))
-            cut1.Tool = eval("App.activeDocument()." + name + "_bd")
-            # eval("Gui.ActiveDocument." + name + "_bd" + ".Visibility=True")
+                cut2.Base = eval("App.activeDocument()." + "side_1_bd" + str(i - 1))
+            cut1.Tool = stair
+            cut2.Tool = stair
+
+            stair.Visibility = True
 
         group.addObject(cut1)
+        group.addObject(cut2)
         doc.recompute()
 
         App.Console.PrintMessage('Cutting stairs done!\n')
+
+    def IsActive(self):
+        """
+        Here you can define if the command must be active or not (greyed) if certain conditions
+        are met or not. This function is optional.
+        """
+        return True
+
+
+class CreateDrawings():
+    """
+    Cut
+    """
+
+    def GetResources(self):
+        """
+        TODO
+        """
+        return {"Pixmap": "My_Command_Icon",  # the name of a svg file available in the resources
+                "MenuText": "Testing object",
+                "ToolTip": "Create random object"}
+
+    def Activated(self):
+        """
+        TODO
+        """
+        doc = App.activeDocument()
+
+        path = os.path.dirname(os.path.abspath(__file__))
+        print(path)
+        templateFileSpec = path + "/test.svg"
+
+        page = doc.addObject('TechDraw::DrawPage', 'Page')
+        doc.addObject('TechDraw::DrawSVGTemplate', 'Template')
+        doc.Template.Template = templateFileSpec
+        doc.Page.Template = doc.Template
+        page.ViewObject.show()
+        view = doc.addObject('TechDraw::DrawViewPart', 'View')
+        page.addView(view)
+
+        num_of_stairs = 10
+
+        for i in range(0, num_of_stairs):
+            continue
 
     def IsActive(self):
         """
@@ -401,3 +497,4 @@ Gui.addCommand("Create dimensions", GenerateSpreadsheet())
 Gui.addCommand("Create sketches", GenerateSketches())
 Gui.addCommand("Create part", CreatePart())
 Gui.addCommand("Cut stairs", CutStairs())
+Gui.addCommand("Create drawings", CreateDrawings())
