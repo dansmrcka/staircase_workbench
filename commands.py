@@ -7,6 +7,8 @@ import FreeCADGui as Gui
 import Part
 import Sketcher
 
+import empty
+from importlib import reload
 
 class GenerateSpreadsheet():
     """
@@ -16,8 +18,10 @@ class GenerateSpreadsheet():
         """
         TODO
         """
-        return {"Pixmap": "My_Command_Icon",  # the name of a svg file available in the resources
-                "MenuText": "Add table",
+        path = os.path.dirname(empty.__file__)
+        iconPath = os.path.join(path, "icons")
+        return {"Pixmap": iconPath+ '/workbench.svg' ,  # the name of a svg file available in the resources
+                "MenuText": "Add table with dimensions",
                 "ToolTip": "table"}
 
     def Activated(self):
@@ -291,23 +295,35 @@ class GenerateSketches():
         geo_list = []
         geo_list.append(Part.LineSegment(V1, V2))
 
-        pointlst = []
-        pointlst.append(V2)
+        top_point_lst = []
+        top_point_lst.append(V2)
+        
+        bottom_point_lst = []
+        bottom_point_lst.append(V5)
         for i in range(1, num_of_stairs):
-            point_x = top_points[i][0]
-            point_y = top_points[i][1]
-            v = App.Vector(point_x, point_y + 30, 0)  # TODO: calculate proper coordinates
-            pointlst.append(v)
-            geo_list.append(Part.Point(v))
+            v = App.Vector(top_points[i][0], top_points[i][1] + 30, 0)  # TODO: calculate proper coordinates
+            top_point_lst.append(v)
 
-        pointlst.append(V3)
-        geo_list.append(Part.BSplineCurve(pointlst, None, None, False, 3, None, False))
+            u = App.Vector(bottom_points[i][0], bottom_points[i][1] + 30, 0)  
+            bottom_point_lst.append(u)
+            # geo_list.append(Part.Point(v))
+            geo_list.append(Part.Point(u))
+
+        # top bspline
+        top_point_lst.append(V3)
+        geo_list.append(Part.BSplineCurve(top_point_lst, None, None, False, 3, None, False))
+
+        # bottom bspline
+        bottom_point_lst.append(V6)
+        geo_list.append(Part.BSplineCurve(bottom_point_lst, None, None, False, 3, None, False))
+        # geo_list.append(Part.LineSegment(V5, V6)) # bottom spline
 
         geo_list.append(Part.LineSegment(V3, V4))
         geo_list.append(Part.LineSegment(V4, V5))
         geo_list.append(Part.LineSegment(V6, V1))
 
         con_list = []
+        print("Hello1")
 
         # con_list.append(Sketcher.Constraint('Coincident', 0 + offset, 2, 1 + offset, 1))
         # con_list.append(Sketcher.Constraint('Coincident', 1 + offset, 2, 2 + offset, 1))
@@ -329,7 +345,7 @@ class CreatePart():
         TODO
         """
         return {"Pixmap": "My_Command_Icon",  # the name of a svg file available in the resources
-                "MenuText": "Testing object",
+                "MenuText": "Generate objects from the sketch",
                 "ToolTip": "Create random object"}
 
     def Activated(self):
@@ -406,7 +422,7 @@ class CutStairs():
         TODO
         """
         return {"Pixmap": "My_Command_Icon",  # the name of a svg file available in the resources
-                "MenuText": "Testing object",
+                "MenuText": "Cut out the steps",
                 "ToolTip": "Create random object"}
 
     def Activated(self):
@@ -459,7 +475,7 @@ class CreateDrawings():
         TODO
         """
         return {"Pixmap": "My_Command_Icon",  # the name of a svg file available in the resources
-                "MenuText": "Testing object",
+                "MenuText": "Create drawing out of the objects",
                 "ToolTip": "Create random object"}
 
     def Activated(self):
@@ -492,9 +508,37 @@ class CreateDrawings():
         """
         return True
 
+class Reset():
+    """
+    reset the commands
+    """
+
+    def GetResources(self):
+        """
+        TODO
+        """
+        return {"Pixmap": "My_Command_Icon",  # the name of a svg file available in the resources
+                "MenuText": "reset",
+                "ToolTip": "reset"}
+
+    def Activated(self):
+        """
+        TODO
+        """
+        reload(commands.py)
+        return True
+
+    def IsActive(self):
+        """
+        Here you can define if the command must be active or not (greyed) if certain conditions
+        are met or not. This function is optional.
+        """
+        return True
+
 
 Gui.addCommand("Create dimensions", GenerateSpreadsheet())
 Gui.addCommand("Create sketches", GenerateSketches())
 Gui.addCommand("Create part", CreatePart())
 Gui.addCommand("Cut stairs", CutStairs())
 Gui.addCommand("Create drawings", CreateDrawings())
+Gui.addCommand("reset", Reset())
